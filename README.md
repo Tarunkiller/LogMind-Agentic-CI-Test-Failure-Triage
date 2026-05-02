@@ -29,7 +29,7 @@ RAW LOG → [parse_log] → [classify_failure] → confidence check
 | Category accuracy    | 10/10    |
 | Flag accuracy        | 10/10    |
 | Hallucination-free   | 10/10    |
-| Avg confidence       | 0.79     |
+| Avg confidence       | 0.84     |
 
 ---
 
