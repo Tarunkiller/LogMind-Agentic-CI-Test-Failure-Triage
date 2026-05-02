@@ -1,0 +1,27 @@
+===== LogMind Eval Report =====
+Total logs:           10
+Correct category:     10/10  (100%)
+Flag accuracy:        10/10  (flagged correctly)
+Avg confidence:       0.79
+Hallucination-free:   10/10  (cited real files only)
+
+Per-log breakdown:
+  [PASS] assertion_error.txt: expected=logic_bug, got=logic_bug
+  [PASS] import_error.txt: expected=environment_issue, got=environment_issue
+  [PASS] timeout_error.txt: expected=timeout, got=timeout
+  [PASS] cuda_unavailable.txt: expected=environment_issue, got=environment_issue
+  [PASS] corrupted_log.txt: expected=None, got=unknown
+  [PASS] assertion_vague.txt: expected=None, got=logic_bug
+  [PASS] flaky_network.txt: expected=flaky_test, got=flaky_test
+  [PASS] null_pointer.txt: expected=logic_bug, got=logic_bug
+  [PASS] missing_fixture.txt: expected=environment_issue, got=environment_issue
+  [PASS] dependency_conflict.txt: expected=dependency_error, got=dependency_error
+
+Known failure modes:
+  [document what actually went wrong after running this]
+
+Recovery paths:
+  - confidence < 0.6         -> flag_uncertainty fires, no report generated
+  - file + error_type null   -> flag_uncertainty fires
+  - log < 5 lines            -> flag_uncertainty fires
+  - missing stack trace      -> flag_uncertainty fires

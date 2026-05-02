@@ -1,0 +1,8 @@
+FAILED tests/test_transform.py::test_feature_pipeline
+Traceback (most recent call last):
+  File "tests/test_transform.py", line 78, in test_feature_pipeline
+    result = pipeline.transform(raw_data)
+  File "src/pipeline.py", line 143, in transform
+    return self.scaler.transform(data)
+AttributeError: 'NoneType' object has no attribute 'transform'
+=========================== 1 failed in 0.19s ============================

@@ -1,0 +1,191 @@
+﻿PARA: LogMind
+PARA: Agentic CI Test Failure Triage System
+PARA: Complete Build Documentation
+PARA: Padamati Tarun Krishna  |  NVIDIA Application 2026
+PARA: Built with Anthropic Claude API  |  Python  |  LLM Tool Use
+PARA: 1. Project Overview
+PARA: LogMind is an LLM-powered agent that ingests raw CI/CD test logs, automatically triages failures into structured categories, identifies root causes, and generates ready-to-file bug reports ΓÇö all without human intervention. When the agent is uncertain, it explicitly flags the log for manual review rather than hallucinating an answer.
+TABLE_START
+ROW: Why this project matters for NVIDIANVIDIA's job description for Test and Tools Development Engineer explicitly asks for someone who can build 'multi-agent pipelines for automated test generation, log analysis, failure triage, and bug-filing workflows.' LogMind is exactly that system, built end-to-end.
+TABLE_END
+PARA: 1.1  What the Agent Does
+PARA: Receives a raw CI log file as input (pytest output, GitHub Actions log, any text format)
+PARA: Runs a 4-tool pipeline: parse ΓåÆ classify ΓåÆ report ΓåÆ or flag uncertainty
+PARA: Outputs a structured JSON bug report saved to disk
+PARA: Runs an eval harness scoring its own accuracy across 10 labeled test cases
+PARA: Explicitly documents its own failure modes in the README
+PARA: 1.2  One-Line Value Proposition
+TABLE_START
+ROW: Core pitchLogMind triages failures, files bugs, and finds root causes without waiting for humans ΓÇö with built-in uncertainty detection that prevents hallucinated root causes from entering your bug tracker.
+TABLE_END
+PARA: 1.3  Why It Stands Out
+TABLE_START
+ROW: Feature | Why It Matters
+ROW: flag_uncertainty tool | Agent admits when it doesn't know ΓÇö rarer and more valuable than blind confidence
+ROW: Eval harness included | Measures its own accuracy; shows you understand LLM output quality engineering
+ROW: Failure modes documented | NVIDIA explicitly asks for 'intellectual integrity about where your projects break'
+ROW: CUDA log test case | Signals GPU environment awareness ΓÇö directly relevant to NVIDIA's stack
+ROW: Clean Python under 150 lines | Proves you write testable, readable production code, not notebook-style hacks
+TABLE_END
+PARA: 2. Architecture
+PARA: 2.1  Project File Structure
+TABLE_START
+ROW: logmind/Γö£ΓöÇΓöÇ main.py              # CLI entry point (--log, --eval, --dir flags)Γö£ΓöÇΓöÇ agent.py             # Core agent loop with Anthropic tool-use APIΓö£ΓöÇΓöÇ tools.py             # 4 tool implementations (pure functions)Γö£ΓöÇΓöÇ eval.py              # Evaluation harness ΓÇö scores agent accuracyΓö£ΓöÇΓöÇ data/Γöé   Γö£ΓöÇΓöÇ sample_logs/     # 10 realistic CI log .txt filesΓöé   ΓööΓöÇΓöÇ eval_labels.json # Ground truth labels for eval scoringΓö£ΓöÇΓöÇ outputs/Γöé   ΓööΓöÇΓöÇ reports/         # Generated bug reports as JSON filesΓö£ΓöÇΓöÇ .env                 # ANTHROPIC_API_KEY (never commit this)Γö£ΓöÇΓöÇ README.md            # Eval results + failure mode docsΓööΓöÇΓöÇ requirements.txt     # anthropic, python-dotenv
+TABLE_END
+PARA: 2.2  Agent Pipeline Flow
+PARA: Every log passes through this exact sequence. There are no shortcuts or branches except the uncertainty exit:
+TABLE_START
+ROW: RAW LOG TEXT     |     v[Tool 1: parse_log]  Extracts: error_type, file, line, stack_trace, test_name  Returns null for any field it cannot determine from the log     |     v[Tool 2: classify_failure]  Categories: logic_bug | environment_issue | flaky_test |              dependency_error | timeout | unknown  Also returns: confidence (0.0ΓÇô1.0) + reasoning string     |     +---> confidence < 0.6  OR  file+error_type both null     |     OR log < 5 lines  OR  no stack trace     |          |     |          v     |     [Tool 4: flag_uncertainty]     |          Outputs: { flagged: true, reason, recommendation }     |          STOPS HERE ΓÇö no bug report generated     |     v (confidence >= 0.6 and fields present)[Tool 3: generate_bug_report]  Outputs: title, severity, category, root_cause,           steps_to_reproduce, suggested_fix, confidence  Saves JSON to: outputs/reports/{test_name}_{timestamp}.json
+TABLE_END
+PARA: 2.3  The flag_uncertainty Design Decision
+TABLE_START
+ROW: This is the most important architectural decision in the projectMost LLM demos hide failure modes. LogMind makes uncertainty a first-class output. When the agent cannot confidently determine what went wrong, it calls flag_uncertainty and stops. This prevents hallucinated root causes from entering the bug tracker ΓÇö which is worse than no triage at all. This design choice is what NVIDIA means by 'intellectual integrity about where your projects break.'
+TABLE_END
+PARA: 3. File-by-File Build Guide
+PARA: Build in this exact order. Each file depends on the previous one. Do not skip ahead.
+PARA: 3.1  requirements.txt  (build first, 2 minutes)
+TABLE_START
+ROW: anthropicpython-dotenv
+TABLE_END
+PARA: Install with:
+TABLE_START
+ROW: pip install -r requirements.txt
+TABLE_END
+PARA: 3.2  .env  (build second, 1 minute)
+TABLE_START
+ROW: ANTHROPIC_API_KEY=your_key_here
+TABLE_END
+TABLE_START
+ROW: Security ruleAdd .env to your .gitignore immediately. Never commit your API key. NVIDIA engineers will check your commit history.
+TABLE_END
+PARA: 3.3  tools.py  (build third, ~45 minutes)
+PARA: This file contains 4 pure Python functions. Each takes a specific input and returns a typed dict. No Anthropic API calls happen here ΓÇö these are just data transformation functions that the agent will invoke.
+PARA: Tool 1: parse_log
+TABLE_START
+ROW: def parse_log(log_text: str) -> dict:    """    Extracts structured fields from raw CI log text.    Returns null for any field that cannot be determined.    Never guesses ΓÇö missing data is returned as None.    Returns:        dict with keys: error_type, file, line,                        stack_trace, test_name    """    result = {        "error_type": None,        "file": None,        "line": None,        "stack_trace": None,        "test_name": None    }    lines = log_text.strip().split('\n')    for line in lines:        # Extract test name from pytest output        if 'FAILED' in line and '::' in line:            result['test_name'] = line.split('::')[-1].split(' ')[0]        # Extract error type (last line of traceback)        if ': ' in line and any(e in line for e in            ['Error', 'Exception', 'Warning', 'Timeout']):            result['error_type'] = line.split(':')[0].strip()        # Extract file and line number        if line.strip().startswith('File ') and ', line ' in line:            parts = line.strip().split(',')            result['file'] = parts[0].replace('File ', '').strip().strip('"')            try:                result['line'] = int(parts[1].replace(' line ', '').strip())            except ValueError:                pass    # Extract stack trace block    if 'Traceback' in log_text:        start = log_text.find('Traceback')        result['stack_trace'] = log_text[start:start+1500]    return result
+TABLE_END
+PARA: Tool 2: classify_failure
+TABLE_START
+ROW: CATEGORIES = [    "logic_bug",        # wrong output, assertion failed    "environment_issue",# missing package, CUDA, config    "flaky_test",       # intermittent, network, timing    "dependency_error", # version conflict, import fail    "timeout",          # test exceeded time limit    "unknown"           # insufficient information]def classify_failure(parsed_data: dict) -> dict:    """    Classifies failure into a category with confidence score.    Confidence < 0.6 should trigger flag_uncertainty downstream.    Returns:        dict with keys: category, confidence, reasoning    """    error = (parsed_data.get('error_type') or '').lower()    trace = (parsed_data.get('stack_trace') or '').lower()    combined = error + ' ' + trace    # Rule-based classification with confidence scoring    if 'assertionerror' in combined or 'assert ' in combined:        return {            "category": "logic_bug",            "confidence": 0.85,            "reasoning": "AssertionError indicates test expectation mismatch ΓÇö likely logic bug."        }    if any(x in combined for x in ['modulenotfounderror', 'importerror', 'cuda', 'no module']):        return {            "category": "environment_issue",            "confidence": 0.88,            "reasoning": "Import or environment setup failure ΓÇö missing dependency or misconfigured runtime."        }    if any(x in combined for x in ['timeout', 'timed out', 'exceeded']):        return {            "category": "timeout",            "confidence": 0.90,            "reasoning": "Test exceeded time limit ΓÇö likely slow external call or infinite loop."        }    if any(x in combined for x in ['connection refused', 'intermittent', 'flaky', 'network']):        return {            "category": "flaky_test",            "confidence": 0.75,            "reasoning": "Network or timing-dependent failure ΓÇö likely flaky test or unstable dependency."        }    if any(x in combined for x in ['versionconflict', 'requires', 'incompatible']):        return {            "category": "dependency_error",            "confidence": 0.82,            "reasoning": "Package version conflict detected ΓÇö dependency resolution needed."        }    if 'nonetype' in combined or 'attributeerror' in combined:        return {            "category": "logic_bug",            "confidence": 0.78,            "reasoning": "NoneType or AttributeError ΓÇö null reference or unexpected object state."        }    # Fallback ΓÇö not enough signal    return {        "category": "unknown",        "confidence": 0.35,        "reasoning": "Insufficient signal to classify failure type confidently."    }
+TABLE_END
+PARA: Tool 3: generate_bug_report
+TABLE_START
+ROW: import json, osfrom datetime import datetimedef generate_bug_report(classification: dict, parsed_data: dict,                         original_log: str) -> dict:    """    Generates structured bug report and saves it to disk.    Only called when confidence >= 0.6 and key fields are present.    Returns:        dict with full bug report fields    """    severity_map = {        "logic_bug": "high",        "environment_issue": "medium",        "flaky_test": "low",        "dependency_error": "medium",        "timeout": "medium",        "unknown": "low"    }    test_name = parsed_data.get('test_name') or 'unknown_test'    category = classification.get('category', 'unknown')    report = {        "title": f"[{category.upper()}] Failure in {test_name}",        "severity": severity_map.get(category, "medium"),        "category": category,        "affected_file": parsed_data.get("file"),        "affected_line": parsed_data.get("line"),        "root_cause": classification.get("reasoning"),        "error_type": parsed_data.get("error_type"),        "steps_to_reproduce": "Run the failing test in isolation. Check stack trace for exact failure point.",        "suggested_fix": _suggest_fix(category),        "confidence": classification.get("confidence"),        "generated_at": datetime.now().isoformat()    }    # Save to disk    os.makedirs('outputs/reports', exist_ok=True)    ts = datetime.now().strftime('%Y%m%d_%H%M%S')    path = f'outputs/reports/{test_name}_{ts}.json'    with open(path, 'w') as f:        json.dump(report, f, indent=2)    report['saved_to'] = path    return reportdef _suggest_fix(category: str) -> str:    fixes = {        "logic_bug": "Review assertion logic and expected values. Add debug prints around failure point.",        "environment_issue": "Check installed packages match requirements.txt. Verify CUDA/GPU availability.",        "flaky_test": "Add retry logic or mock the external dependency. Consider marking as xfail.",        "dependency_error": "Run pip install -r requirements.txt in a fresh virtualenv.",        "timeout": "Profile the test for slow operations. Consider increasing timeout or mocking slow calls.",        "unknown": "Manual investigation required ΓÇö insufficient log data for automated suggestion."    }    return fixes.get(category, 'Manual review required.')
+TABLE_END
+PARA: Tool 4: flag_uncertainty
+TABLE_START
+ROW: def flag_uncertainty(reason: str) -> dict:    """    Called instead of generate_bug_report when the agent    cannot confidently determine the failure root cause.    This is correct behavior, not a failure state.    Returns:        dict signaling manual review is needed    """    return {        "flagged": True,        "reason": reason,        "recommendation": "manual_review",        "message": "Agent confidence too low to generate reliable bug report. Human review required."    }
+TABLE_END
+PARA: 3.4  agent.py  (build fourth, ~60 minutes)
+PARA: This is the core file. It calls the Anthropic API with tool_use and manages the 4-step pipeline. Keep it under 150 lines ΓÇö clean and readable is the requirement.
+TABLE_START
+ROW: import os, jsonfrom anthropic import Anthropicfrom dotenv import load_dotenvfrom tools import parse_log, classify_failure, generate_bug_report, flag_uncertaintyload_dotenv()client = Anthropic()MODEL = 'claude-sonnet-4-20250514'# Tool definitions ΓÇö passed to Claude so it knows what tools existTOOLS = [    {        "name": "parse_log",        "description": "Extracts structured fields from raw CI log text. Returns error_type, file, line, stack_trace, test_name. Returns null for unknown fields ΓÇö never guesses.",        "input_schema": {            "type": "object",            "properties": {"log_text": {"type": "string", "description": "Raw CI log content"}},            "required": ["log_text"]        }    },    {        "name": "classify_failure",        "description": "Classifies failure into a category with a confidence score (0.0-1.0). Categories: logic_bug, environment_issue, flaky_test, dependency_error, timeout, unknown.",        "input_schema": {            "type": "object",            "properties": {"parsed_data": {"type": "object", "description": "Output from parse_log"}},            "required": ["parsed_data"]        }    },    {        "name": "generate_bug_report",        "description": "Generates and saves a structured bug report as JSON. Only call when confidence >= 0.6 and key fields are present.",        "input_schema": {            "type": "object",            "properties": {                "classification": {"type": "object"},                "parsed_data": {"type": "object"},                "original_log": {"type": "string"}            },            "required": ["classification", "parsed_data", "original_log"]        }    },    {        "name": "flag_uncertainty",        "description": "Flag this log for manual review when: confidence < 0.6, both file and error_type are null, log has fewer than 5 lines, or stack trace is missing. Do NOT generate a bug report when uncertain.",        "input_schema": {            "type": "object",            "properties": {"reason": {"type": "string", "description": "Explain why the log cannot be triaged automatically"}},            "required": ["reason"]        }    }]TOOL_MAP = {    "parse_log": lambda args: parse_log(args["log_text"]),    "classify_failure": lambda args: classify_failure(args["parsed_data"]),    "generate_bug_report": lambda args: generate_bug_report(        args["classification"], args["parsed_data"], args["original_log"]),    "flag_uncertainty": lambda args: flag_uncertainty(args["reason"])}SYSTEM_PROMPT = '''You are LogMind, an expert CI test failure triage agent.Your job is to analyze CI logs and produce structured bug reports.You MUST follow this exact pipeline for every log:1. Call parse_log to extract structured fields2. Call classify_failure with the parsed result3. Check the confidence score:   - If confidence < 0.6, OR both file and error_type are null,     OR the log has fewer than 5 lines, OR stack trace is missing:     ΓåÆ call flag_uncertainty and STOP   - Otherwise: call generate_bug_reportNever skip a step. Never hallucinate file paths or error types not present in the log.Admitting uncertainty is correct behavior ΓÇö it is better than a wrong bug report.'''def triage_log(log_text: str) -> dict:    """    Runs the full 4-step triage pipeline on a single CI log.    Returns a dict with all intermediate outputs and final result.    """    messages = [{'role': 'user', 'content': f'Triage this CI log:\n\n{log_text}'}]    results = {'parsed': None, 'classification': None, 'final': None}    while True:        response = client.messages.create(            model=MODEL,            max_tokens=2000,            system=SYSTEM_PROMPT,            tools=TOOLS,            messages=messages        )        # Append Claude's response to history        messages.append({'role': 'assistant', 'content': response.content})        # Check if Claude is done        if response.stop_reason == 'end_turn':            break        # Process tool calls        tool_results = []        for block in response.content:            if block.type != 'tool_use':                continue            tool_name = block.name            tool_input = block.input            # Execute the tool            if tool_name not in TOOL_MAP:                result = {'error': f'Unknown tool: {tool_name}'}            else:                result = TOOL_MAP[tool_name](tool_input)            # Store intermediate results            if tool_name == 'parse_log': results['parsed'] = result            elif tool_name == 'classify_failure': results['classification'] = result            elif tool_name in ('generate_bug_report', 'flag_uncertainty'):                results['final'] = result                results['triage_outcome'] = tool_name            tool_results.append({                'type': 'tool_result',                'tool_use_id': block.id,                'content': json.dumps(result)            })        # If we got tool calls, add results and continue        if tool_results:            messages.append({'role': 'user', 'content': tool_results})        else:            break  # No more tool calls    return results
+TABLE_END
+PARA: 3.5  eval.py  (build fifth, ~45 minutes)
+PARA: The eval harness is what proves you understand LLM output quality ΓÇö not just that you can call an API. This is the file NVIDIA cares about most after agent.py.
+TABLE_START
+ROW: import json, osfrom agent import triage_logdef run_eval():    """Runs all 10 labeled logs through the agent and scores accuracy."""    with open('data/eval_labels.json') as f:        labels = json.load(f)    results = []    correct_category = 0    correct_flag = 0    total_confidence = 0    hallucination_free = 0    for label in labels:        log_path = f"data/sample_logs/{label['log_file']}"        with open(log_path) as f:            log_text = f.read()        print(f"Triaging: {label['log_file']}...")        result = triage_log(log_text)        # Score category        actual_category = None        was_flagged = result.get('triage_outcome') == 'flag_uncertainty'        if result.get('classification'):            actual_category = result['classification'].get('category')            conf = result['classification'].get('confidence', 0)            total_confidence += conf        category_correct = actual_category == label['expected_category']        flag_correct = was_flagged == label['should_flag']        if category_correct: correct_category += 1        if flag_correct: correct_flag += 1        # Hallucination check: did agent cite a real file from the log?        no_hallucination = True        if result.get('parsed') and result['parsed'].get('file'):            cited_file = result['parsed']['file']            if cited_file and cited_file not in log_text:                no_hallucination = False        if no_hallucination: hallucination_free += 1        results.append({            'log_file': label['log_file'],            'expected': label['expected_category'],            'actual': actual_category,            'category_correct': category_correct,            'should_flag': label['should_flag'],            'was_flagged': was_flagged,            'flag_correct': flag_correct,            'no_hallucination': no_hallucination        })    total = len(labels)    avg_conf = total_confidence / total    report = f'''===== LogMind Eval Report =====Total logs:           {total}Correct category:     {correct_category}/{total}  ({int(correct_category/total*100)}%)Flag accuracy:        {correct_flag}/{total}  (flagged correctly)Avg confidence:       {avg_conf:.2f}Hallucination-free:   {hallucination_free}/{total}  (cited real files only)Per-log breakdown:'''    for r in results:        status = 'PASS' if r['category_correct'] and r['flag_correct'] else 'FAIL'        report += f"  [{status}] {r['log_file']}: expected={r['expected']}, got={r['actual']}\n"    report += '''Known failure modes:  [document what actually went wrong after running this]Recovery paths:  - confidence < 0.6         ΓåÆ flag_uncertainty fires, no report generated  - file + error_type null   ΓåÆ flag_uncertainty fires  - log < 5 lines            ΓåÆ flag_uncertainty fires  - missing stack trace      ΓåÆ flag_uncertainty fires'''    print(report)    os.makedirs('outputs', exist_ok=True)    with open('outputs/eval_report.txt', 'w') as f:        f.write(report)    print('Saved to outputs/eval_report.txt')if __name__ == '__main__':    run_eval()
+TABLE_END
+PARA: 3.6  main.py  (build last, ~20 minutes)
+TABLE_START
+ROW: import argparse, os, jsonfrom agent import triage_logfrom eval import run_evaldef main():    parser = argparse.ArgumentParser(description='LogMind ΓÇö CI Log Triage Agent')    parser.add_argument('--log',  help='Path to a single log file to triage')    parser.add_argument('--eval', action='store_true', help='Run full eval harness')    parser.add_argument('--dir',  help='Triage all .txt logs in a directory')    args = parser.parse_args()    if args.eval:        run_eval()    elif args.log:        with open(args.log) as f:            log_text = f.read()        result = triage_log(log_text)        print(json.dumps(result, indent=2))    elif args.dir:        logs = [f for f in os.listdir(args.dir) if f.endswith('.txt')]        for log_file in logs:            path = os.path.join(args.dir, log_file)            print(f'\nTriaging {log_file}...')            with open(path) as f:                log_text = f.read()            result = triage_log(log_text)            outcome = result.get('triage_outcome', 'unknown')            print(f'  Outcome: {outcome}')            if result.get('classification'):                conf = result['classification'].get('confidence', 0)                cat = result['classification'].get('category', 'unknown')                print(f'  Category: {cat}  |  Confidence: {conf:.2f}')    else:        parser.print_help()if __name__ == '__main__':    main()
+TABLE_END
+PARA: 4. Sample Log Files  (data/sample_logs/)
+PARA: Create exactly these 10 files. Each is a realistic CI log that you would see in a real test pipeline. The content must be realistic enough for Claude to classify correctly.
+PARA: 4.1  assertion_error.txt  ΓåÆ  expected: logic_bug
+TABLE_START
+ROW: FAILED tests/test_model.py::test_prediction_output================================ FAILURES =================================________________________ test_prediction_output ___________________________    def test_prediction_output():        model = load_model('checkpoints/model_v2.pt')        output = model.predict(sample_input)>       assert output.shape == (1, 10), f'Expected (1,10), got {output.shape}'E       AssertionError: Expected (1,10), got (1, 8)tests/test_model.py:42: AssertionError=========================== 1 failed in 2.31s ============================
+TABLE_END
+PARA: 4.2  import_error.txt  ΓåÆ  expected: environment_issue
+TABLE_START
+ROW: FAILED tests/test_pipeline.py::test_data_loaderTraceback (most recent call last):  File 'tests/test_pipeline.py', line 3, in <module>    from data_utils import DataLoader  File 'data_utils.py', line 7, in <module>    import pandas as pdModuleNotFoundError: No module named 'pandas'=========================== 1 failed in 0.12s ============================
+TABLE_END
+PARA: 4.3  timeout_error.txt  ΓåÆ  expected: timeout
+TABLE_START
+ROW: FAILED tests/test_inference.py::test_batch_inferenceE   Failed: Timeout >30.0sTraceback (most recent call last):  File 'tests/test_inference.py', line 88, in test_batch_inference    result = model.run_batch(large_input, timeout=30)  File 'src/model.py', line 204, in run_batch    return self._process(inputs)TimeoutError: Operation timed out after 30.0 seconds=========================== 1 failed in 30.21s ===========================
+TABLE_END
+PARA: 4.4  cuda_unavailable.txt  ΓåÆ  expected: environment_issue
+PARA: This log is specifically relevant to NVIDIA. Do not remove it.
+TABLE_START
+ROW: FAILED tests/test_gpu_pipeline.py::test_cuda_forward_passTraceback (most recent call last):  File 'tests/test_gpu_pipeline.py', line 14, in test_cuda_forward_pass    model = model.cuda()  File 'src/gpu_model.py', line 31, in cuda    assert torch.cuda.is_available(), 'CUDA device required but not found'AssertionError: CUDA device required but not foundtorch.cuda.is_available() returned FalseCUDA_VISIBLE_DEVICES=''=========================== 1 failed in 1.04s ============================
+TABLE_END
+PARA: 4.5  corrupted_log.txt  ΓåÆ  expected: flag_uncertainty  (should_flag: true)
+TABLE_START
+ROW: ERRORProcess killed.Exit code 137
+TABLE_END
+TABLE_START
+ROW: Why this log is importantOnly 3 lines. No stack trace, no error type, no file. This MUST trigger flag_uncertainty. If your agent tries to classify this, it will hallucinate. The correct output is { flagged: true, reason: '...', recommendation: 'manual_review' }.
+TABLE_END
+PARA: 4.6  assertion_vague.txt  ΓåÆ  expected: flag_uncertainty  (should_flag: true)
+TABLE_START
+ROW: FAILED tests/test_core.pyAssertionError=========================== 1 failed in 0.44s ============================
+TABLE_END
+PARA: No message, no file path, no line number, no stack trace. Agent must flag this.
+PARA: 4.7  Remaining logs ΓÇö create similarly
+TABLE_START
+ROW: Filename | Content to include
+ROW: flaky_network.txt | ConnectionRefusedError, 'intermittent', random port 5432, no consistent stack
+ROW: null_pointer.txt | AttributeError: NoneType has no attribute 'transform', specific file + line
+ROW: missing_fixture.txt | pytest fixture 'db_connection' not found, conftest.py reference
+ROW: dependency_conflict.txt | VersionConflict: package requires X>=2.0 but Y 1.8 is installed
+TABLE_END
+PARA: 5. README.md  (write after running eval)
+PARA: The README is the most important file in the repo. NVIDIA engineers will read it before they open any code. Write it after you have real eval numbers.
+TABLE_START
+ROW: # LogMind ΓÇö Agentic CI Test Failure TriageAn LLM agent that ingests CI test logs, triages failures,and generates structured bug reports ΓÇö without human intervention.When uncertain, it flags for manual review rather than hallucinating.## How it worksRAW LOG ΓåÆ [parse_log] ΓåÆ [classify_failure] ΓåÆ confidence check                                                    |                              confidence >= 0.6     |  confidence < 0.6                                    |               |        |                          [generate_bug_report]     |  [flag_uncertainty]                                    |               |        |                              JSON report saved     |  manual_review## Eval Results| Metric               | Score    ||----------------------|----------|| Category accuracy    | X/10     || Flag accuracy        | X/2      || Hallucination-free   | X/10     || Avg confidence       | 0.XX     |[Paste your actual numbers here after running: python main.py --eval]## Documented Failure Modes- [Fill in after running eval ΓÇö what did the agent get wrong?]- Example: 'Agent misclassified timeout as flaky_test when log lacked timing keywords'## Recovery Paths- Confidence < 0.6 ΓåÆ flag_uncertainty fires, no report generated- Both file and error_type null ΓåÆ flag_uncertainty fires- Log under 5 lines ΓåÆ flag_uncertainty fires- Missing stack trace ΓåÆ flag_uncertainty fires## Why flag_uncertainty mattersA hallucinated root cause in a bug tracker is worse than no triage at all.Engineers who trust the system will chase phantom bugs. LogMind'suncertainty detection ensures that low-confidence results never silentlyenter the bug filing pipeline ΓÇö they get routed to human review instead.## Setuppip install -r requirements.txtcp .env.example .env  # add your ANTHROPIC_API_KEY## Usagepython main.py --log data/sample_logs/assertion_error.txtpython main.py --evalpython main.py --dir data/sample_logs/
+TABLE_END
+PARA: 6. Tonight's Build Order
+TABLE_START
+ROW: Total estimated time3.5 to 4.5 hours if you follow this order without skipping steps. The eval run at the end takes ~5 minutes to call the API 10 times.
+TABLE_END
+TABLE_START
+ROW: Step | Task + Time
+ROW: 1  (10 min) | mkdir logmind, create requirements.txt, .env, .gitignore, run pip install
+ROW: 2  (45 min) | Build tools.py ΓÇö all 4 functions, test each one in isolation with print()
+ROW: 3  (60 min) | Build agent.py ΓÇö tool definitions, TOOL_MAP, system prompt, triage_log loop
+ROW: 4  (20 min) | Create all 10 sample log files in data/sample_logs/
+ROW: 5  (10 min) | Create eval_labels.json with ground truth
+ROW: 6  (45 min) | Build eval.py ΓÇö scoring logic, report generation
+ROW: 7  (20 min) | Build main.py ΓÇö CLI with --log, --eval, --dir
+ROW: 8  (20 min) | Run python main.py --eval, fix any bugs, note real numbers
+ROW: 9  (30 min) | Write README.md with real eval numbers and failure modes
+ROW: 10 (15 min) | Push to GitHub, check repo looks clean, update resume bullet
+TABLE_END
+PARA: 6.1  Pre-push checklist
+PARA: eval.py runs without errors on all 10 logs
+PARA: Real accuracy numbers are pasted into README.md
+PARA: .env is in .gitignore and NOT committed
+PARA: agent.py is under 150 lines
+PARA: Every function has a docstring
+PARA: outputs/reports/ contains at least 8 generated JSON files
+PARA: outputs/eval_report.txt contains your real results
+PARA: flag_uncertainty fires for corrupted_log.txt and assertion_vague.txt
+PARA: README has the failure modes section filled in with real observations
+PARA: GitHub repo is public
+PARA: 6.2  Resume bullet to add after pushing
+TABLE_START
+ROW: Copy this into your resume (fill in your real X numbers)LogMind ΓÇö Agentic Test Failure Triage  |  Python, Anthropic API, LLM Tool Use, Eval Harness
+ΓÇó Built LLM agent triaging CI test failures via 4-tool pipeline: parse ΓåÆ classify ΓåÆ report ΓåÆ flag_uncertainty; correctly triaged X/10 labeled failure categories
+ΓÇó Designed eval harness measuring hallucination rate, per-category precision, and uncertainty-flag accuracy across 10 test cases; failure modes documented in repo
+ΓÇó Agent explicitly invokes flag_uncertainty when confidence < 0.6 rather than generating unreliable root causes ΓÇö uncertainty handling built into architecture
+TABLE_END
+PARA: 7. Interview Preparation
+PARA: NVIDIA will ask you to walk through this project. These are the exact questions you will face. Know every answer before you submit your application.
+PARA: 7.1  Questions you will be asked
+TABLE_START
+ROW: Question | What they're testing
+ROW: Walk me through agent.py line by line | Do you own this code or did AI write it for you?
+ROW: Why does flag_uncertainty exist? | Do you understand LLM failure modes?
+ROW: What did your eval reveal? | Did you actually run it? What broke?
+ROW: How would you handle a 10,000-line log? | Context window awareness
+ROW: How would you add a 5th tool? | Can you extend the architecture?
+ROW: What's the worst thing that could go wrong in production? | Systems thinking
+ROW: How is this different from grep + regex? | Do you understand where LLMs add value?
+TABLE_END
+PARA: 7.2  Answers to prepare
+PARA: On flag_uncertainty:
+PARA: "A hallucinated root cause is worse than no triage at all. If an engineer trusts the system and chases a phantom bug, that's wasted engineering time and eroded trust in the tool. flag_uncertainty routes low-confidence cases to human review instead of silently generating unreliable output. This is the same reason null is better than a wrong value in a typed system."
+PARA: On context window limits:
+PARA: "For large logs I'd truncate to the last 2,000 lines ΓÇö the failure is almost always at the end. Alternatively, pre-filter to lines containing 'ERROR', 'FAILED', 'Traceback', or 'Exception' before passing to the agent. For very large logs I'd chunk them and run multiple parse_log calls, then merge results before classify_failure."
+PARA: On production risks:
+PARA: "The biggest risk is the agent confidently misclassifying a logic bug as an environment issue ΓÇö different teams own those, so it gets routed wrong and sits unresolved. The confidence threshold mitigates this but doesn't eliminate it. In production I'd add a human-review queue for anything below 0.8 confidence and track misclassification rate over time as a key metric."

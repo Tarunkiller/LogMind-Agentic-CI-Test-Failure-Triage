@@ -1,0 +1,10 @@
+FAILED tests/test_setup.py::test_dependency_versions
+Traceback (most recent call last):
+  File "tests/test_setup.py", line 11, in test_dependency_versions
+    import numpy_accelerator
+  File "numpy_accelerator/__init__.py", line 4, in <module>
+    from . import _core
+pkg_resources.VersionConflict: (numpy-accelerator 1.8.0 (/usr/lib/python3/dist-packages),
+Requirement.parse('numpy-accelerator>=2.0'))
+This package requires numpy-accelerator>=2.0 but numpy-accelerator 1.8 is installed.
+=========================== 1 failed in 0.15s ============================

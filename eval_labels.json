@@ -1,0 +1,52 @@
+[
+  {
+    "log_file": "assertion_error.txt",
+    "expected_category": "logic_bug",
+    "should_flag": false
+  },
+  {
+    "log_file": "import_error.txt",
+    "expected_category": "environment_issue",
+    "should_flag": false
+  },
+  {
+    "log_file": "timeout_error.txt",
+    "expected_category": "timeout",
+    "should_flag": false
+  },
+  {
+    "log_file": "cuda_unavailable.txt",
+    "expected_category": "environment_issue",
+    "should_flag": false
+  },
+  {
+    "log_file": "corrupted_log.txt",
+    "expected_category": null,
+    "should_flag": true
+  },
+  {
+    "log_file": "assertion_vague.txt",
+    "expected_category": null,
+    "should_flag": true
+  },
+  {
+    "log_file": "flaky_network.txt",
+    "expected_category": "flaky_test",
+    "should_flag": false
+  },
+  {
+    "log_file": "null_pointer.txt",
+    "expected_category": "logic_bug",
+    "should_flag": false
+  },
+  {
+    "log_file": "missing_fixture.txt",
+    "expected_category": "environment_issue",
+    "should_flag": false
+  },
+  {
+    "log_file": "dependency_conflict.txt",
+    "expected_category": "dependency_error",
+    "should_flag": false
+  }
+]

@@ -1,0 +1,10 @@
+FAILED tests/test_database.py::test_user_query
+Traceback (most recent call last):
+  File "tests/test_database.py", line 55, in test_user_query
+    conn = psycopg2.connect(host='localhost', port=5432, dbname='testdb')
+  File "src/db_client.py", line 22, in connect
+    self.connection = psycopg2.connect(**kwargs)
+ConnectionRefusedError: [Errno 111] Connection refused
+This test has failed intermittently 4 times in the last 7 runs.
+No consistent stack trace pattern observed.
+=========================== 1 failed in 0.38s ============================

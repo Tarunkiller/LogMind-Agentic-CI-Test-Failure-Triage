@@ -1,0 +1,9 @@
+FAILED tests/test_inference.py::test_batch_inference
+E   Failed: Timeout >30.0s
+Traceback (most recent call last):
+  File "tests/test_inference.py", line 88, in test_batch_inference
+    result = model.run_batch(large_input, timeout=30)
+  File "src/model.py", line 204, in run_batch
+    return self._process(inputs)
+TimeoutError: Operation timed out after 30.0 seconds
+=========================== 1 failed in 30.21s ===========================

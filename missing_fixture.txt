@@ -1,0 +1,11 @@
+FAILED tests/test_integration.py::test_db_read
+ERROR at setup of test_db_read
+
+fixture 'db_connection' not found
+available fixtures: tmp_path, capsys, monkeypatch, ...
+use 'pytest --fixtures [testpath]' for help on them.
+
+conftest.py:14: in db_connection
+    yield psycopg2.connect(DATABASE_URL)
+E   fixture 'db_connection' not found — check conftest.py for missing fixture definitions
+=========================== 1 failed in 0.08s ============================

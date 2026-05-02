@@ -1,0 +1,13 @@
+{
+  "title": "[LOGIC_BUG] Failure in test_feature_pipeline",
+  "severity": "high",
+  "category": "logic_bug",
+  "affected_file": "src/pipeline.py",
+  "affected_line": 143,
+  "root_cause": "NoneType or AttributeError \u2014 null reference or unexpected object state.",
+  "error_type": "AttributeError",
+  "steps_to_reproduce": "Run the failing test in isolation. Check stack trace for exact failure point.",
+  "suggested_fix": "Review assertion logic and expected values. Add debug prints around failure point.",
+  "confidence": 0.78,
+  "generated_at": "2026-05-02T16:21:48.233838"
+}

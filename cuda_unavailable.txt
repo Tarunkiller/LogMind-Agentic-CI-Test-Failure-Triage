@@ -1,0 +1,10 @@
+FAILED tests/test_gpu_pipeline.py::test_cuda_forward_pass
+Traceback (most recent call last):
+  File "tests/test_gpu_pipeline.py", line 14, in test_cuda_forward_pass
+    model = model.cuda()
+  File "src/gpu_model.py", line 31, in cuda
+    assert torch.cuda.is_available(), 'CUDA device required but not found'
+AssertionError: CUDA device required but not found
+torch.cuda.is_available() returned False
+CUDA_VISIBLE_DEVICES=''
+=========================== 1 failed in 1.04s ============================

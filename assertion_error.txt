@@ -1,0 +1,12 @@
+FAILED tests/test_model.py::test_prediction_output
+================================ FAILURES =================================
+________________________ test_prediction_output ___________________________
+
+    def test_prediction_output():
+        model = load_model('checkpoints/model_v2.pt')
+        output = model.predict(sample_input)
+>       assert output.shape == (1, 10), f'Expected (1,10), got {output.shape}'
+E       AssertionError: Expected (1,10), got (1, 8)
+
+tests/test_model.py:42: AssertionError
+=========================== 1 failed in 2.31s ============================

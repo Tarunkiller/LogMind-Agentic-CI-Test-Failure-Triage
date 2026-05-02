@@ -1,0 +1,13 @@
+{
+  "title": "[ENVIRONMENT_ISSUE] Failure in test_db_read",
+  "severity": "medium",
+  "category": "environment_issue",
+  "affected_file": "tests/test_integration.py",
+  "affected_line": null,
+  "root_cause": "Import, fixture, or environment setup failure \u2014 missing dependency or misconfigured runtime.",
+  "error_type": null,
+  "steps_to_reproduce": "Run the failing test in isolation. Check stack trace for exact failure point.",
+  "suggested_fix": "Check installed packages match requirements.txt. Verify CUDA/GPU availability.",
+  "confidence": 0.88,
+  "generated_at": "2026-05-02T16:24:57.469384"
+}

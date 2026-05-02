@@ -1,0 +1,13 @@
+{
+  "title": "[DEPENDENCY_ERROR] Failure in test_dependency_versions",
+  "severity": "medium",
+  "category": "dependency_error",
+  "affected_file": "numpy_accelerator/__init__.py",
+  "affected_line": 4,
+  "root_cause": "Package version conflict detected \u2014 dependency resolution needed.",
+  "error_type": null,
+  "steps_to_reproduce": "Run the failing test in isolation. Check stack trace for exact failure point.",
+  "suggested_fix": "Run pip install -r requirements.txt in a fresh virtualenv.",
+  "confidence": 0.82,
+  "generated_at": "2026-05-02T16:21:48.950078"
+}

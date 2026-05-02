@@ -1,0 +1,13 @@
+{
+  "title": "[TIMEOUT] Failure in test_batch_inference",
+  "severity": "medium",
+  "category": "timeout",
+  "affected_file": "src/model.py",
+  "affected_line": 204,
+  "root_cause": "Test exceeded time limit \u2014 likely slow external call or infinite loop.",
+  "error_type": "TimeoutError",
+  "steps_to_reproduce": "Run the failing test in isolation. Check stack trace for exact failure point.",
+  "suggested_fix": "Profile the test for slow operations. Consider increasing timeout or mocking slow calls.",
+  "confidence": 0.9,
+  "generated_at": "2026-05-02T16:24:55.229922"
+}

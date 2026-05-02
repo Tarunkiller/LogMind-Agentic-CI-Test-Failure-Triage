@@ -1,0 +1,13 @@
+{
+  "title": "[LOGIC_BUG] Failure in test_prediction_output",
+  "severity": "high",
+  "category": "logic_bug",
+  "affected_file": "tests/test_model.py",
+  "affected_line": 42,
+  "root_cause": "AssertionError indicates test expectation mismatch \u2014 likely logic bug.",
+  "error_type": "tests/test_model.py",
+  "steps_to_reproduce": "Run the failing test in isolation. Check stack trace for exact failure point.",
+  "suggested_fix": "Review assertion logic and expected values. Add debug prints around failure point.",
+  "confidence": 0.85,
+  "generated_at": "2026-05-02T16:26:58.509883"
+}

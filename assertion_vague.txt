@@ -1,0 +1,3 @@
+FAILED tests/test_core.py
+AssertionError
+=========================== 1 failed in 0.44s ============================

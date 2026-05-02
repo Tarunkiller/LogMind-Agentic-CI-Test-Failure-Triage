@@ -1,0 +1,13 @@
+{
+  "title": "[FLAKY_TEST] Failure in test_user_query",
+  "severity": "low",
+  "category": "flaky_test",
+  "affected_file": "src/db_client.py",
+  "affected_line": 22,
+  "root_cause": "Network or timing-dependent failure \u2014 likely flaky test or unstable dependency.",
+  "error_type": "ConnectionRefusedError",
+  "steps_to_reproduce": "Run the failing test in isolation. Check stack trace for exact failure point.",
+  "suggested_fix": "Add retry logic or mock the external dependency. Consider marking as xfail.",
+  "confidence": 0.75,
+  "generated_at": "2026-05-02T16:22:45.883439"
+}
